@@ -1,0 +1,1292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JCT Pharma Approval Tracker</title>
+<style>
+:root{
+--navy:#16283f; --navy-deep:#0e1b2c; --navy-soft:#24405f; --gold:#b8912f;
+--paper:#f6f4ef; --card:#fff; --ink:#1c2530; --muted:#667284; --line:#ded9d0;
+--ok:#1d6b4a; --ok-bg:#e6f2ec; --warn:#8a5a00; --warn-bg:#fbf1de;
+--bad:#9b2c2c; --bad-bg:#fbeaea; --idle:#55606f; --idle-bg:#eceef1;
+--serif:Georgia,"Times New Roman",serif;
+--sans:"Segoe UI",-apple-system,BlinkMacSystemFont,Roboto,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55}
+a{color:var(--navy-soft)}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+button{font:inherit}
+
+.shell{display:flex;min-height:100vh}
+.sidebar{width:238px;flex:0 0 238px;background:var(--navy);color:#cfd8e4;display:flex;flex-direction:column}
+.brand{padding:22px 20px 18px;border-bottom:1px solid rgba(255,255,255,.1)}
+.brand .mark{font-family:var(--serif);font-size:24px;color:#fff;display:block}
+.brand .sub{font-size:12.5px;color:#93a4ba;margin-top:3px;display:block}
+.nav{padding:12px 0;flex:1}
+.nav button{display:block;width:100%;text-align:left;padding:9px 20px 9px 17px;color:#cfd8e4;
+ background:none;border:none;border-left:3px solid transparent;cursor:pointer;font-size:14.5px}
+.nav button:hover{background:rgba(255,255,255,.06);color:#fff}
+.nav button.on{background:var(--navy-deep);border-left-color:var(--gold);color:#fff;font-weight:600}
+.meter{padding:14px 20px;border-top:1px solid rgba(255,255,255,.1);font-size:12.5px;color:#93a4ba}
+.meter .bar{height:5px;background:rgba(255,255,255,.16);border-radius:3px;margin:6px 0 4px;overflow:hidden}
+.meter .bar i{display:block;height:100%;background:var(--gold)}
+.main{flex:1;min-width:0}
+.topbar{background:var(--card);border-bottom:1px solid var(--line);padding:15px 30px}
+.topbar h1{font-family:var(--serif);font-size:26px;font-weight:400;margin:0}
+.topbar .crumb{font-size:13px;color:var(--muted);margin-bottom:2px}
+.content{padding:24px 30px 70px}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:4px;padding:19px 21px;margin-bottom:20px}
+.card h2{font-family:var(--serif);font-size:18px;font-weight:400;margin:0 0 13px}
+.lede{color:var(--muted);font-size:14px;max-width:74ch;margin:0 0 12px}
+
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:13px;margin-bottom:22px}
+.tile{background:var(--card);border:1px solid var(--line);border-top:3px solid var(--navy);border-radius:4px;
+ padding:14px 16px;cursor:pointer;text-align:left;width:100%;display:block}
+.tile:hover{border-color:var(--gold);background:#fffdf8}
+.tile .n{font-family:var(--serif);font-size:32px;line-height:1.1;color:var(--navy)}
+.tile .l{font-size:13.5px;color:var(--muted);margin-top:2px}
+.tile.alert{border-top-color:var(--bad)} .tile.alert .n{color:var(--bad)}
+.tile.attn{border-top-color:var(--gold)} .tile.attn .n{color:var(--warn)}
+.tile.good{border-top-color:var(--ok)} .tile.good .n{color:var(--ok)}
+
+.chart{display:grid;grid-template-columns:190px 1fr 52px;gap:7px 12px;align-items:center;font-size:13.5px}
+.chart .lab{color:var(--muted);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chart .track{background:#f0eee9;border-radius:3px;height:17px;overflow:hidden}
+.chart .track i{display:block;height:100%;background:var(--navy-soft)}
+.chart .track i.ok{background:var(--ok)} .chart .track i.warn{background:var(--gold)}
+.chart .track i.bad{background:var(--bad)} .chart .track i.idle{background:#aab2bd}
+.chart .val{font-variant-numeric:tabular-nums;color:var(--muted)}
+
+.ready{display:flex;align-items:baseline;gap:14px;margin-bottom:10px}
+.ready .big{font-family:var(--serif);font-size:52px;color:var(--navy);line-height:1}
+.ready .cap{color:var(--muted);font-size:14px}
+.progress{height:11px;background:#f0eee9;border-radius:6px;overflow:hidden;margin:8px 0 4px}
+.progress i{display:block;height:100%;background:linear-gradient(90deg,var(--navy-soft),var(--gold))}
+.progress.thin{height:7px;margin:6px 0 2px}
+.progress i.full{background:var(--ok)}
+
+table{width:100%;border-collapse:collapse;font-size:14px}
+thead th{text-align:left;font-size:13px;font-weight:600;color:var(--muted);border-bottom:2px solid var(--line);padding:8px 9px;white-space:nowrap}
+tbody td{border-bottom:1px solid #ececec;padding:9px;vertical-align:top}
+tbody tr.click{cursor:pointer}
+tbody tr.click:hover{background:#fbfaf7}
+td.code{font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--muted)}
+td.src{color:var(--muted);font-size:13px}
+.meta{color:var(--muted);font-size:12.5px}
+
+.badge{display:inline-block;padding:2px 9px;border-radius:11px;font-size:12.5px;font-weight:600;white-space:nowrap;border:1px solid transparent}
+.b-ok{background:var(--ok-bg);color:var(--ok);border-color:#bcdccc}
+.b-warn{background:var(--warn-bg);color:var(--warn);border-color:#e6cf9e}
+.b-bad{background:var(--bad-bg);color:var(--bad);border-color:#eec4c4}
+.b-idle{background:var(--idle-bg);color:var(--idle);border-color:#d2d7de}
+.flag{display:inline-block;font-size:12.5px;color:var(--warn);background:var(--warn-bg);border:1px solid #e6cf9e;border-radius:3px;padding:1px 7px}
+
+.bar-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:15px;align-items:center}
+.chip{padding:5px 13px;border:1px solid var(--line);border-radius:15px;background:var(--card);color:var(--ink);cursor:pointer;font-size:13.5px}
+.chip:hover{border-color:var(--gold)}
+.chip.on{background:var(--navy);border-color:var(--navy);color:#fff}
+
+input,select,textarea{font:inherit;padding:8px 10px;border:1px solid #c6ccd4;border-radius:3px;background:#fff;width:100%;color:var(--ink)}
+textarea{min-height:76px;resize:vertical}
+input:focus,select:focus,textarea:focus{border-color:var(--navy-soft)}
+.btn{font-weight:600;background:var(--navy);color:#fff;border:1px solid var(--navy);padding:8px 18px;border-radius:3px;cursor:pointer}
+.btn:hover{background:var(--navy-deep)}
+.btn.ghost{background:none;color:var(--navy)}
+.btn.ghost:hover{background:#eef1f5}
+.btn.danger{background:var(--bad);border-color:var(--bad)}
+.btn.danger:hover{background:#7d2323}
+.btn.sm{padding:5px 12px;font-size:13.5px}
+.btn[disabled]{opacity:.55;cursor:default}
+
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+.field label{display:block;font-size:13px;font-weight:600;margin-bottom:4px}
+.field{margin-bottom:13px}
+.hint{font-size:12.5px;color:var(--muted);margin-top:4px}
+
+.pairs{width:100%}
+.pairs th{text-align:left;width:190px;font-weight:600;color:var(--muted);padding:6px 12px 6px 0;vertical-align:top;font-size:13.5px;border:none}
+.pairs td{padding:6px 0;border-bottom:1px solid #f0efec}
+.empty{color:#97a0ac;font-style:italic}
+.verbatim{background:#f8f7f3;border:1px solid var(--line);border-radius:3px;padding:10px 12px;white-space:pre-wrap;font-size:13.5px}
+.locked{border-left:3px solid var(--gold)}
+
+/* ---- inline editing inside the task sheet ---- */
+table.sheet td{padding:6px 8px;vertical-align:middle}
+.inline{padding:5px 8px;font-size:13.5px;border:1px solid #d7dce3;border-radius:3px;background:#fff;width:100%;min-width:0}
+.inline:hover{border-color:#aeb6c2}
+select.inline{min-width:152px;font-weight:600}
+td.dcell{width:150px}
+td.ocell{width:172px}
+td.pcell{white-space:nowrap}
+.st-ok{background:var(--ok-bg);color:var(--ok);border-color:#bcdccc}
+.st-warn{background:var(--warn-bg);color:var(--warn);border-color:#e6cf9e}
+.st-bad{background:var(--bad-bg);color:var(--bad);border-color:#eec4c4}
+.st-idle{background:var(--idle-bg);color:var(--idle);border-color:#d2d7de}
+.pc{font-variant-numeric:tabular-nums;font-weight:600;margin-right:6px}
+.pc.miss{color:var(--bad)} .pc.ok{color:var(--ok)}
+.rowup{display:inline-block}
+.rowup input{display:none}
+.rowup span{display:inline-block;border:1px solid var(--navy);color:var(--navy);border-radius:3px;
+ padding:3px 9px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap}
+.rowup span:hover{background:#eef1f5}
+.tname a{font-weight:500;text-decoration:none;color:var(--ink)}
+.tname a:hover{color:var(--navy);text-decoration:underline}
+.clearflag{border:1px solid #e6cf9e;background:var(--warn-bg);color:var(--warn);border-radius:3px;
+ padding:1px 8px;font-size:12px;cursor:pointer;margin-top:3px;white-space:nowrap}
+.od{display:block;font-size:12px;color:var(--bad);font-weight:600;margin-top:2px}
+.nodate{display:block;font-size:11.5px;color:var(--muted);margin-top:2px;font-style:italic;
+ line-height:1.35;cursor:help}
+.clearflag:hover{background:#f5e4bf}
+.fixed{border-bottom:1px dotted var(--muted);cursor:help}
+
+.doc{border:1px solid var(--line);border-radius:4px;padding:14px 16px;margin-bottom:13px;background:#fcfbf9}
+.doc.missing{border-left:3px solid var(--gold)}
+.doc.held{border-left:3px solid var(--ok)}
+.doc-head{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-bottom:10px}
+.doc-head .nm{flex:1;min-width:180px;font-weight:600}
+.doc-head select{width:auto;min-width:130px;padding:5px 9px;font-size:13.5px}
+.files{margin:10px 0 0;border-top:1px solid #eee9e0;padding-top:9px}
+.file{display:flex;flex-wrap:wrap;gap:9px;align-items:center;padding:6px 0;border-bottom:1px solid #f2efe9;font-size:13.5px}
+.file:last-child{border-bottom:none}
+.file .ver{font-weight:700;color:var(--navy);font-variant-numeric:tabular-nums;min-width:30px}
+.file .fn{flex:1;min-width:150px;word-break:break-all}
+.uploader{display:inline-block;margin-top:10px}
+.uploader input[type=file]{display:none}
+.uploader span{display:inline-block;background:var(--navy);color:#fff;font-weight:600;padding:8px 18px;border-radius:3px;cursor:pointer;font-size:14px}
+.uploader span:hover{background:var(--navy-deep)}
+.uploader.replace span{background:none;color:var(--navy);border:1px solid var(--navy)}
+.uploader.replace span:hover{background:#eef1f5}
+
+.note{border-left:3px solid var(--gold);background:#fdfaf2;padding:12px 15px;border-radius:0 4px 4px 0;margin-bottom:18px;font-size:14px}
+.note.bad{border-left-color:var(--bad);background:var(--bad-bg)}
+.note.ok{border-left-color:var(--ok);background:var(--ok-bg)}
+.note h3{margin:0 0 5px;font-size:15px}
+.note ul{margin:6px 0 0 18px;padding:0}
+
+.thread{border-left:2px solid var(--line);padding-left:14px;margin-bottom:14px}
+.thread .when{font-size:12.5px;color:var(--muted)}
+.thread .who{font-weight:600}
+
+.toast{position:fixed;right:20px;bottom:20px;background:var(--navy);color:#fff;padding:11px 18px;border-radius:4px;
+ font-size:14px;box-shadow:0 3px 14px rgba(0,0,0,.24);opacity:0;pointer-events:none;transition:opacity .18s;max-width:340px;z-index:50}
+.toast.show{opacity:1}
+
+@media(max-width:900px){
+ .shell{flex-direction:column}.sidebar{width:100%;flex:none}
+ .nav{display:flex;flex-wrap:wrap;padding:6px}
+ .nav button{width:auto;border-left:none;border-bottom:3px solid transparent;padding:8px 13px}
+ .nav button.on{border-left:none;border-bottom-color:var(--gold)}
+ .meter{display:none}
+ .content,.topbar{padding-left:16px;padding-right:16px}
+ .chart{grid-template-columns:120px 1fr 44px}
+ table{font-size:13px}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+@media print{
+ .sidebar,.bar-row,.btn,.uploader,.rowup,.clearflag,.no-print{display:none!important}
+ .inline{border:none;background:none;padding:0;-webkit-appearance:none;appearance:none}
+ .content{padding:0}.card{border:none;padding:0;margin-bottom:16px;break-inside:avoid}
+ body{background:#fff}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="mark">JCT Pharma</span>
+      <span class="sub">Approval tracker</span>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="meter">
+      <div>Space used on this computer</div>
+      <div class="bar"><i id="meterBar" style="width:0%"></i></div>
+      <div id="meterText">&mdash;</div>
+    </div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="crumb" id="crumb"></div>
+      <h1 id="pageTitle">Dashboard</h1>
+    </div>
+    <div class="content" id="view"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const SEED = {"sheetTitle":"INDEX - B.Sc (Nursing)","sheetName":"Sheet1","file":"JCT_Pharma_Checklist.xls","tasks":[{"code":"TASK-PHARMA-001","sno":"1","annex":"1","desc":"Trust decd","srcStatus":"Available - Trust Resolution for Pharma to be incorporated","srcTime":"10-09-2026","ref":"Sheet1!A5","status":"Completed","applic":"Applicable","review":1,"due":"2026-09-10","dueOk":1},{"code":"TASK-PHARMA-002","sno":"2","annex":"2","desc":"Sale deed","srcStatus":"Available","srcTime":"03-09-2026","ref":"Sheet1!A6","status":"Completed","applic":"Applicable","review":0,"due":"2026-09-03","dueOk":1},{"code":"TASK-PHARMA-003","sno":"3","annex":"3","desc":"Encumbrance certificate - current","srcStatus":"TBO - online","srcTime":"10-09-2026","ref":"Sheet1!A7","status":"Not Started","applic":"Applicable","review":0,"due":"2026-09-10","dueOk":1},{"code":"TASK-PHARMA-003A","sno":"","annex":"3","desc":"Encumbrance certificate - after land allocation","srcStatus":"To Be Obtained (TBO) - from SRO (After Land sub division plan is provided by Mr Ramachandran)","srcTime":"16-09-2026","ref":"Sheet1!A8","status":"Not Started","applic":"Applicable","review":0,"due":"2026-09-16","dueOk":1},{"code":"TASK-PHARMA-004","sno":"4","annex":"4","desc":"'A' Register","srcStatus":"TBO - online","srcTime":"10-09-2026","ref":"Sheet1!A9","status":"Not Started","applic":"Applicable","review":0,"due":"2026-09-10","dueOk":1},{"code":"TASK-PHARMA-005","sno":"5","annex":"5","desc":"Chita","srcStatus":"TBO - online","srcTime":"10-09-2026","ref":"Sheet1!A10","status":"Not Started","applic":"Applicable","review":0,"due":"2026-09-10","dueOk":1},{"code":"TASK-PHARMA-006","sno":"6","annex":"6","desc":"Adangal","srcStatus":"TBO - from Panchayat/VAO","srcTime":"16-09-2026","ref":"Sheet1!A11","status":"Not Started","applic":"Applicable","review":0,"due":"2026-09-16","dueOk":1},{"code":"TASK-PHARMA-007","sno":"7","annex":"7","desc":"Letter from the District Collector","srcStatus":"TBO - Land use certificate from Dist Collector/DRO (Mr.Ashok to give list of 7 points to be shown in letter)","srcTime":"30-09-2026","ref":"Sheet1!A12","status":"Not Started","applic":"Applicable","review":0,"due":"2026-09-30","dueOk":1},{"code":"TASK-PHARMA-008","sno":"8","annex":"8","desc":"Certificate of Evidence 37-B,","srcStatus":"Available","srcTime":"16-09-2026","ref":"Sheet1!A13","status":"Completed","applic":"Applicable","review":0,"due":"2026-09-16","dueOk":1},{"code":"TASK-PHARMA-009","sno":"9","annex":"9","desc":"FMB Sketch - Field Measurement Book","srcStatus":"TBO - online","srcTime":"10-09-2026","ref":"Sheet1!A14","status":"Not Started","applic":"Applicable","review":0,"due":"2026-09-10","dueOk":1},{"code":"TASK-PHARMA-010","sno":"10","annex":"10","desc":"Topographic Map","srcStatus":"Available","srcTime":"10-09-2026","ref":"Sheet1!A15","status":"Completed","applic":"Applicable","review":0,"due":"2026-09-10","dueOk":1},{"code":"TASK-PHARMA-011","sno":"11","annex":"11","desc":"Legal opinion","srcStatus":"TBO - from Public Prosecutor (as per std format)","srcTime":"16-09-2026","ref":"Sheet1!A16","status":"Not Started","applic":"Applicable","review":0,"due":"2026-09-16","dueOk":1},{"code":"TASK-PHARMA-012","sno":"12","annex":"12","desc":"DTCP- Proceedings","srcStatus":"Chennai DTCP - Coimbatore DTCP - Pichanur Panchayat Proceedings to be obtained","srcTime":"apply by 30/09/26 and obtain within 45 days from Application date (i.e..15/11/26)","ref":"Sheet1!A17","status":"Not Started","applic":"Applicable","review":0,"due":null,"dueOk":0},{"code":"TASK-PHARMA-013","sno":"13","annex":"13","desc":"DTCP/CMDA - Building plan approVal","srcStatus":"DTCP Approval to be obtained","srcTime":"apply by 30/09/26 and obtain within 45 days from Application date (i.e..15/11/26)","ref":"Sheet1!A18","status":"Not Started","applic":"Applicable","review":0,"due":null,"dueOk":0},{"code":"TASK-PHARMA-014","sno":"14","annex":"14","desc":"Building completion certificate","srcStatus":"Can be obtained only after completion of Level 2 (Completion of entire building); For now obtain completion certificate for current building","srcTime":"Cuurent Building completion certificate by 15/11/26; Additional Level 2 completion later","ref":"Sheet1!A19","status":"Not Started","applic":"Applicable","review":1,"due":null,"dueOk":0},{"code":"TASK-PHARMA-015","sno":"15","annex":"15","desc":"Building stability certificate","srcStatus":"TBO - from Stability Engineer","srcTime":"30-09-2026","ref":"Sheet1!A20","status":"Not Started","applic":"Applicable","review":0,"due":"2026-09-30","dueOk":1},{"code":"TASK-PHARMA-016","sno":"16","annex":"16","desc":"Form D certificate","srcStatus":"TBO - from Tahsildar after completion of Building","srcTime":"2 weeks from DTCP approval - i.e by 30/11/26","ref":"Sheet1!A21","status":"Not Started","applic":"Applicable","review":0,"due":null,"dueOk":0},{"code":"TASK-PHARMA-017","sno":"17","annex":"17","desc":"Fire License certificate","srcStatus":"TBO - from DFO - after completion of Level 2 (Note: NOC to be obtained for current building)","srcTime":"2 weeks from DTCP approval - i.e by 30/11/26","ref":"Sheet1!A22","status":"Not Started","applic":"Applicable","review":0,"due":null,"dueOk":0},{"code":"TASK-PHARMA-018","sno":"18","annex":"18","desc":"Sanitary certificate","srcStatus":"TBO - from Health Dept (for current building)","srcTime":"2 weeks from DTCP approval - i.e by 30/11/26","ref":"Sheet1!A23","status":"Not Started","applic":"Applicable","review":0,"due":null,"dueOk":0},{"code":"TASK-PHARMA-019","sno":"19","annex":"19","desc":"Endowment Fund","srcStatus":"20L in Jt A/C - Trust and DME (refundable)","srcTime":"During Inspection by DME (31/01/27)","ref":"Sheet1!A24","status":"Not Started","applic":"Applicable","review":1,"due":null,"dueOk":0},{"code":"TASK-PHARMA-020","sno":"20","annex":"20","desc":"Solvency certificate","srcStatus":"Auditor","srcTime":"by 30/09/26","ref":"Sheet1!A25","status":"Not Started","applic":"Applicable","review":1,"due":null,"dueOk":0},{"code":"TASK-PHARMA-021","sno":"21","annex":"21","desc":"Scrutinizing Fee","srcStatus":"1L - 2L (to be paid at submission of application)","srcTime":"Date of submission with DME","ref":"Sheet1!A26","status":"Not Started","applic":"Applicable","review":1,"due":null,"dueOk":0},{"code":"TASK-PHARMA-022","sno":"22","annex":"22","desc":"Financial soundness","srcStatus":"Auditor (Last 3years)","srcTime":"by 30/09/26","ref":"Sheet1!A27","status":"Not Started","applic":"Applicable","review":1,"due":null,"dueOk":0},{"code":"TASK-PHARMA-023","sno":"23","annex":"23","desc":"Earmarked Assets","srcStatus":"Declaration by Trust (Value of Land + Building + Assets)","srcTime":"by 30/09/26","ref":"Sheet1!A28","status":"Not Started","applic":"Applicable","review":1,"due":null,"dueOk":0},{"code":"TASK-PHARMA-024","sno":"24","annex":"24","desc":"Clinical Tie Up","srcStatus":"TBO - In progress","srcTime":"TBC","ref":"Sheet1!A29","status":"Not Started","applic":"Applicable","review":0,"due":null,"dueOk":0},{"code":"TASK-PHARMA-025","sno":"25","annex":"25","desc":"Library Books","srcStatus":"TBO - Book list TBO - Mr Ashok to provide","srcTime":"before DME Submission","ref":"Sheet1!A30","status":"Not Started","applic":"Applicable","review":0,"due":null,"dueOk":0},{"code":"TASK-PHARMA-026","sno":"26","annex":"26","desc":"Lab Details","srcStatus":"TBO - Mr Ashok to provide","srcTime":"before DME Submission","ref":"Sheet1!A31","status":"Not Started","applic":"Applicable","review":0,"due":null,"dueOk":0},{"code":"TASK-PHARMA-027","sno":"27","annex":"27","desc":"Audio Visual Aids","srcStatus":"TBO - Mr Ashok to provide (Bills to be provided)","srcTime":"before DME Submission","ref":"Sheet1!A32","status":"Not Started","applic":"Applicable","review":0,"due":null,"dueOk":0},{"code":"TASK-PHARMA-028","sno":"28","annex":"28","desc":"Residential quarters - Hostel details","srcStatus":"Show 4 rooms as Residential quarters in Hostel (Highlight in Plans) - Declaration","srcTime":"before DME Submission","ref":"Sheet1!A33","status":"Not Started","applic":"Applicable","review":1,"due":null,"dueOk":0},{"code":"TASK-PHARMA-029","sno":"29","annex":"29","desc":"Play Ground & Articles","srcStatus":"Existing Playground can be shown - Play equipments Bills","srcTime":"before DME Submission","ref":"Sheet1!A34","status":"Not Started","applic":"Applicable","review":1,"due":null,"dueOk":0},{"code":"TASK-PHARMA-030","sno":"30","annex":"30","desc":"Vehicles / Transport details","srcStatus":"2 Bus - to be registered in name of JCT Pharmacy - Label on Bus - RC Book to be shown","srcTime":"before DME Submission","ref":"Sheet1!A35","status":"Not Started","applic":"Applicable","review":1,"due":null,"dueOk":0},{"code":"TASK-PHARMA-031","sno":"31","annex":"31","desc":"Teaching Faculties details","srcStatus":"TBO -  Mr Ashok to provide (4 PG. PHD - inc Certificates)","srcTime":"before DME Submission","ref":"Sheet1!A36","status":"Not Started","applic":"Applicable","review":0,"due":null,"dueOk":0},{"code":"TASK-PHARMA-032","sno":"32","annex":"32","desc":"Photos of all departments","srcStatus":"TBO - photos after completion of existing building - classrooms, lab inc equipments)","srcTime":"TBC by Mr Ashok","ref":"Sheet1!A37","status":"Not Started","applic":"Applicable","review":0,"due":null,"dueOk":0},{"code":"TASK-PHARMA-033","sno":"33","annex":"33","desc":"GO Copy","srcStatus":"Not Applicable at this stage","srcTime":"","ref":"Sheet1!A38","status":"Not Started","applic":"Not Applicable At This Stage","review":0,"due":null,"dueOk":0},{"code":"TASK-PHARMA-034","sno":"34","annex":"34","desc":"Recent Affiliation/ Recognition order","srcStatus":"Not Applicable at this stage","srcTime":"","ref":"Sheet1!A39","status":"Not Started","applic":"Not Applicable At This Stage","review":0,"due":null,"dueOk":0},{"code":"TASK-PHARMA-035","sno":"35","annex":"35","desc":"Trust Resolution Copy for Change of Address","srcStatus":"Not Applicable at this stage","srcTime":"","ref":"Sheet1!A40","status":"Not Started","applic":"Not Applicable At This Stage","review":0,"due":null,"dueOk":0},{"code":"TASK-PHARMA-036","sno":"36","annex":"36","desc":"RCET Closer Letter","srcStatus":"Not Applicable at this stage","srcTime":"","ref":"Sheet1!A41","status":"Not Started","applic":"Not Applicable At This Stage","review":0,"due":null,"dueOk":0},{"code":"TASK-PHARMA-037","sno":"37","annex":"37","desc":"Declaration","srcStatus":"Not Applicable at this stage - To be provided at time of inspection","srcTime":"","ref":"Sheet1!A42","status":"Not Started","applic":"Not Applicable At This Stage","review":0,"due":null,"dueOk":0}]};
+const KEY = "jct_pharma_tracker_v1";
+
+/* ================================================================ storage */
+let memoryFallback = {};
+let storageWorks = true;
+try { localStorage.setItem("__t", "1"); localStorage.removeItem("__t"); }
+catch (e) { storageWorks = false; }
+
+function rawGet() { return storageWorks ? localStorage.getItem(KEY) : (memoryFallback[KEY] || null); }
+function rawSet(v) {
+  if (!storageWorks) { memoryFallback[KEY] = v; return true; }
+  try { localStorage.setItem(KEY, v); return true; }
+  catch (e) { toast("This browser's text store is full. Download an archive, then remove old comments."); return false; }
+}
+
+/* ============================================ file store (IndexedDB, large) */
+const FDB = "jctPharmaFiles", FSTORE = "files";
+
+function idb() {
+  return new Promise((res, rej) => {
+    let r;
+    try { r = indexedDB.open(FDB, 1); } catch (e) { return rej(e); }
+    r.onupgradeneeded = () => {
+      const d = r.result;
+      if (!d.objectStoreNames.contains(FSTORE)) d.createObjectStore(FSTORE);
+    };
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+    r.onblocked = () => rej(new Error("blocked"));
+  });
+}
+function fileOp(mode, fn) {
+  return idb().then(db => new Promise((res, rej) => {
+    const tx = db.transaction(FSTORE, mode);
+    const req = fn(tx.objectStore(FSTORE));
+    tx.oncomplete = () => res(req ? req.result : undefined);
+    tx.onerror = () => rej(tx.error);
+    tx.onabort = () => rej(tx.error || new Error("aborted"));
+  }));
+}
+const putFile = (id, blob) => fileOp("readwrite", s => s.put(blob, id));
+const getFile = id => fileOp("readonly", s => s.get(id));
+const delFile = id => fileOp("readwrite", s => s.delete(id));
+const clearFiles = () => fileOp("readwrite", s => s.clear());
+
+/* ================================================================= domain */
+const STATUSES = ["Not Started","In Progress","Document Preparation","Submitted","Under Review",
+  "Clarification Required","Resubmission Required","Approved","Completed","On Hold","Cancelled"];
+const DONE_STATUSES = ["Completed","Approved"];
+const CLOSED = ["Completed","Approved","Cancelled"];
+const APPLIC = ["Applicable","Not Applicable At This Stage","Deferred"];
+const PRIORITY = ["","Critical","High","Medium","Low"];
+const DOCSTATUS = ["Not collected","Collected","Submitted","Verified"];
+
+/* Plain typing mistakes in the spreadsheet's DESCRIPTION column.
+   The source text itself is never altered - it stays visible, unchanged, on
+   every task page. This only fixes the name shown in lists and headings. */
+const CORRECTIONS = {
+  "TASK-PHARMA-001": "Trust deed"
+};
+function titleOf(t) { return CORRECTIONS[t.code] || t.desc; }
+
+function blankState() { return { version: 2, user: "", tasks: {}, created: new Date().toISOString() }; }
+let state = load();
+
+function load() {
+  const raw = rawGet();
+  if (!raw) return blankState();
+  try { const s = JSON.parse(raw); if (!s.tasks) s.tasks = {}; return s; }
+  catch (e) { return blankState(); }
+}
+function save() {
+  state.saved = new Date().toISOString();
+  rawSet(JSON.stringify(state));
+  updateMeter();
+}
+
+/* Every task starts with the document its ANNEXURE column names. */
+function defaultDocs(t) {
+  return [{ name: (t.annex ? "Annexure " + t.annex + " \u2014 " : "") + titleOf(t),
+            mandatory: true, status: "Not collected", where: "", remarks: "", files: [] }];
+}
+function work(code) {
+  if (!state.tasks[code]) state.tasks[code] = {};
+  const w = state.tasks[code];
+  if (w.docs === undefined) w.docs = defaultDocs(seedOf(code));
+  if (!w.comments) w.comments = [];
+  if (!w.history) w.history = [];
+  w.docs.forEach(d => { if (!d.files) d.files = []; });
+  return w;
+}
+function seedOf(code) { return SEED.tasks.find(t => t.code === code); }
+
+function merged(t) {
+  const w = state.tasks[t.code] || {};
+  const docs = (w.docs === undefined ? defaultDocs(t) : w.docs).map(d => ({ ...d, files: d.files || [] }));
+  return {
+    ...t,
+    wTitle:   titleOf(t),
+    wStatus:  w.status  !== undefined ? w.status  : t.status,
+    wApplic:  w.applic  !== undefined ? w.applic  : t.applic,
+    wDue:     w.due     !== undefined ? w.due     : (t.due || ""),
+    wPriority: w.priority || "", wOwner: w.owner || "", wProg: w.prog || "",
+    wAuth: w.auth || "", wStart: w.start || "",
+    wPct: w.pct !== undefined ? w.pct : (DONE_STATUSES.includes(t.status) ? 100 : 0),
+    wNotes: w.notes || "",
+    docs, comments: w.comments || [], history: w.history || [],
+    cleared: !!w.reviewCleared
+  };
+}
+function allTasks() { return SEED.tasks.map(merged); }
+
+/* A document counts as held once a file is attached, or once it is recorded
+   as submitted or verified somewhere else. */
+const isHeld = d => (d.files && d.files.length > 0) || d.status === "Submitted" || d.status === "Verified";
+function docStats(t) {
+  const req = t.docs.filter(d => d.mandatory);
+  const held = req.filter(isHeld);
+  const files = t.docs.reduce((n, d) => n + (d.files ? d.files.length : 0), 0);
+  return { total: t.docs.length, required: req.length, held: held.length,
+           missing: req.length - held.length, files,
+           pct: req.length ? Math.round(held.length / req.length * 100) : 100,
+           missingNames: req.filter(d => !isHeld(d)).map(d => d.name) };
+}
+
+/* ================================================================== utils */
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g,
+  c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const today = () => new Date().toISOString().slice(0, 10);
+function fmt(d) { if (!d) return ""; const p = String(d).split("-"); return p.length === 3 ? p[2]+"-"+p[1]+"-"+p[0] : d; }
+function fmtBytes(b) {
+  if (b == null) return "\u2014";
+  if (b < 1024) return b + " B";
+  if (b < 1048576) return (b / 1024).toFixed(0) + " KB";
+  if (b < 1073741824) return (b / 1048576).toFixed(1) + " MB";
+  return (b / 1073741824).toFixed(2) + " GB";
+}
+function isOverdue(t) {
+  return !!t.wDue && t.wDue < today() && t.wApplic === "Applicable" && !CLOSED.includes(t.wStatus);
+}
+function dueSoon(t, days) {
+  if (!t.wDue || t.wApplic !== "Applicable" || CLOSED.includes(t.wStatus)) return false;
+  const diff = (new Date(t.wDue) - new Date(today())) / 86400000;
+  return diff >= 0 && diff <= days;
+}
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById("toast");
+  if (!el) return;
+  el.textContent = msg; el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 3200);
+}
+async function updateMeter() {
+  const bar = document.getElementById("meterBar"), txt = document.getElementById("meterText");
+  if (!bar) return;
+  if (!storageWorks) { bar.style.width = "0%"; txt.textContent = "Not saving \u2014 see the Dashboard"; return; }
+  let used = null, quota = null;
+  try {
+    if (navigator.storage && navigator.storage.estimate) {
+      const e = await navigator.storage.estimate();
+      used = e.usage; quota = e.quota;
+    }
+  } catch (e) { /* older browser */ }
+  if (used == null) { used = (rawGet() || "").length; quota = 5000000; }
+  bar.style.width = Math.min(100, Math.round(used / (quota || 1) * 100)) + "%";
+  txt.textContent = fmtBytes(used) + " of about " + fmtBytes(quota);
+}
+
+/* ================================================================== pages */
+const PAGES = [["dash","Dashboard"],["tasks","Tasks"],["docs","Documents"],["dates","Deadlines"],["backup","Backup"]];
+let route = { page: "dash", filter: "", q: "", task: null };
+
+function nav() {
+  document.getElementById("nav").innerHTML = PAGES.map(([id, label]) =>
+    `<button data-go="${id}" data-filter="" class="${route.page === id && !route.task ? "on" : ""}">${label}</button>`).join("");
+}
+function render() {
+  nav();
+  const titles = { dash:"Dashboard", tasks:"Tasks", docs:"Documents", dates:"Deadlines", backup:"Backup and export" };
+  const view = document.getElementById("view"), crumb = document.getElementById("crumb");
+  crumb.textContent = "";
+  if (route.task) {
+    const t = merged(seedOf(route.task));
+    document.getElementById("pageTitle").textContent = t.wTitle;
+    crumb.innerHTML = `<a href="#" data-go="tasks">Tasks</a> / ${esc(t.code)}`;
+    view.innerHTML = taskPage(t);
+  } else {
+    document.getElementById("pageTitle").textContent = titles[route.page];
+    view.innerHTML = ({ dash: dashPage, tasks: tasksPage, docs: docsPage, dates: datesPage, backup: backupPage })[route.page]();
+  }
+  window.scrollTo(0, 0);
+  updateMeter();
+}
+
+/* ------------------------------------------------------------- dashboard */
+function dashPage() {
+  const T = allTasks();
+  const app = T.filter(t => t.wApplic === "Applicable");
+  const done = app.filter(t => DONE_STATUSES.includes(t.wStatus));
+  const over = T.filter(isOverdue), soon = T.filter(t => dueSoon(t, 14));
+  const rev = T.filter(t => t.review && !t.cleared);
+  const noDate = T.filter(t => !t.wDue && t.srcTime);
+  const na = T.filter(t => t.wApplic !== "Applicable");
+
+  let req = 0, held = 0, files = 0;
+  app.forEach(t => { const s = docStats(t); req += s.required; held += s.held; files += s.files; });
+  const blocked = app.filter(t => !DONE_STATUSES.includes(t.wStatus) && docStats(t).missing > 0);
+
+  const taskPct = app.length ? Math.round(done.length / app.length * 100) : 0;
+  const docPct = req ? Math.round(held / req * 100) : 0;
+  const readiness = Math.round((taskPct + docPct) / 2);
+
+  const byStatus = {};
+  T.forEach(t => { const k = t.wApplic !== "Applicable" ? "Not applicable yet" : t.wStatus;
+                   byStatus[k] = (byStatus[k] || 0) + 1; });
+  const max = Math.max.apply(null, Object.values(byStatus).concat([1]));
+  const cls = k => DONE_STATUSES.includes(k) ? "ok" : k === "Not applicable yet" ? "idle" : k === "Not Started" ? "" : "warn";
+
+  const warn = storageWorks ? "" : `<div class="note bad"><h3>Your changes are not being saved</h3>
+   <p>This browser is blocking local storage, which happens inside a preview window.
+   Download this file and open it directly, or put it on a web address, and both saving and
+   document upload will work.</p></div>`;
+
+  return warn + `
+  <div class="tiles">
+    <button class="tile" data-go="tasks" data-filter=""><div class="n">${T.length}</div><div class="l">Tasks in the checklist</div></button>
+    <button class="tile good" data-go="tasks" data-filter="done"><div class="n">${done.length}</div><div class="l">Completed</div></button>
+    <button class="tile alert" data-go="tasks" data-filter="overdue"><div class="n">${over.length}</div><div class="l">Past their due date</div></button>
+    <button class="tile attn" data-go="tasks" data-filter="soon"><div class="n">${soon.length}</div><div class="l">Due within 14 days</div></button>
+    <button class="tile good" data-go="docs" data-filter="held"><div class="n">${held}</div><div class="l">Documents in hand</div></button>
+    <button class="tile alert" data-go="docs" data-filter="missing"><div class="n">${req - held}</div><div class="l">Documents still missing</div></button>
+    <button class="tile" data-go="docs" data-filter="files"><div class="n">${files}</div><div class="l">Files uploaded</div></button>
+    <button class="tile attn" data-go="tasks" data-filter="blocked"><div class="n">${blocked.length}</div><div class="l">Waiting on paperwork</div></button>
+    <button class="tile attn" data-go="tasks" data-filter="nodate"><div class="n">${noDate.length}</div><div class="l">Deadline needs a date</div></button>
+    <button class="tile attn" data-go="tasks" data-filter="review"><div class="n">${rev.length}</div><div class="l">Flagged for your review</div></button>
+    <button class="tile" data-go="tasks" data-filter="na"><div class="n">${na.length}</div><div class="l">Not applicable yet</div></button>
+  </div>
+
+  <div class="card">
+    <h2>Readiness</h2>
+    <div class="ready"><div class="big">${readiness}%</div>
+      <div class="cap">Tasks ${taskPct}% &nbsp;&middot;&nbsp; Documents ${docPct}% (${held} of ${req} in hand)</div></div>
+    <div class="progress"><i style="width:${readiness}%"></i></div>
+    <p class="lede" style="margin-top:10px">Counted across the ${app.length} tasks marked applicable. The ${na.length}
+    marked <em>not applicable at this stage</em> are excluded so they do not drag the figure down.</p>
+  </div>
+
+  <div class="card">
+    <h2>Where the work stands</h2>
+    <div class="chart">
+      ${Object.entries(byStatus).sort((a, b) => b[1] - a[1]).map(([k, v]) => `
+        <div class="lab">${esc(k)}</div>
+        <div class="track"><i class="${cls(k)}" style="width:${v / max * 100}%"></i></div>
+        <div class="val">${v}</div>`).join("")}
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Where this data came from</h2>
+    <table class="pairs">
+      <tr><th>Source spreadsheet</th><td>${esc(SEED.file)}</td></tr>
+      <tr><th>Sheet</th><td>${esc(SEED.sheetName)}</td></tr>
+      <tr><th>Title cell in the sheet</th><td>${esc(SEED.sheetTitle)}</td></tr>
+      <tr><th>Rows built in</th><td>${SEED.tasks.length}</td></tr>
+      <tr><th>Your changes last saved</th><td>${state.saved ? esc(new Date(state.saved).toLocaleString()) : "Nothing changed yet"}</td></tr>
+    </table>
+  </div>`;
+}
+
+/* ------------------------------------------------------------- task list */
+function filterTasks() {
+  let T = allTasks();
+  const f = route.filter;
+  if (f === "done") T = T.filter(t => DONE_STATUSES.includes(t.wStatus));
+  else if (f === "open") T = T.filter(t => !CLOSED.includes(t.wStatus) && t.wApplic === "Applicable");
+  else if (f === "overdue") T = T.filter(isOverdue);
+  else if (f === "soon") T = T.filter(t => dueSoon(t, 14));
+  else if (f === "nodate") T = T.filter(t => !t.wDue && t.srcTime);
+  else if (f === "review") T = T.filter(t => t.review && !t.cleared);
+  else if (f === "na") T = T.filter(t => t.wApplic !== "Applicable");
+  else if (f === "blocked") T = T.filter(t => t.wApplic === "Applicable" &&
+                                         !DONE_STATUSES.includes(t.wStatus) && docStats(t).missing > 0);
+  if (route.q) {
+    const q = route.q.toLowerCase();
+    T = T.filter(t => (t.wTitle + " " + t.desc + " " + t.code + " " + t.srcStatus + " " + t.wOwner)
+                      .toLowerCase().indexOf(q) !== -1);
+  }
+  return T;
+}
+function statusBadge(t) {
+  if (t.wApplic !== "Applicable") return '<span class="badge b-idle">Not applicable yet</span>';
+  if (DONE_STATUSES.includes(t.wStatus)) return `<span class="badge b-ok">${esc(t.wStatus)}</span>`;
+  if (isOverdue(t)) return `<span class="badge b-bad">${esc(t.wStatus)}</span>`;
+  return `<span class="badge b-warn">${esc(t.wStatus)}</span>`;
+}
+function ownerNames() {
+  const names = {};
+  allTasks().forEach(t => { if (t.wOwner) names[t.wOwner] = 1; });
+  return Object.keys(names).sort();
+}
+
+/* The status dropdown carries both the progress statuses and the
+   "not applicable" states, so one control covers everything. */
+function rowStatusSelect(t) {
+  const na = t.wApplic !== "Applicable";
+  const cur = na ? "a:" + t.wApplic : "s:" + t.wStatus;
+  const tone = na ? "idle" : DONE_STATUSES.includes(t.wStatus) ? "ok" : isOverdue(t) ? "bad" : "warn";
+  return `<select class="inline st-${tone}" data-row="${esc(t.code)}" data-field="status">
+    <optgroup label="Progress">${STATUSES.map(s =>
+      `<option value="s:${esc(s)}"${cur === "s:" + s ? " selected" : ""}>${esc(s)}</option>`).join("")}</optgroup>
+    <optgroup label="Set aside">${APPLIC.slice(1).map(a =>
+      `<option value="a:${esc(a)}"${cur === "a:" + a ? " selected" : ""}>${esc(a)}</option>`).join("")}</optgroup>
+  </select>`;
+}
+
+function rowPapers(t) {
+  const s = docStats(t);
+  const show = s.missing > 0 && t.wApplic === "Applicable" && !DONE_STATUSES.includes(t.wStatus);
+  const count = `<span class="pc ${show ? "miss" : "ok"}">${s.held}/${s.required}</span>`;
+  const files = s.files ? `<span class="meta">${s.files} file${s.files === 1 ? "" : "s"}</span> ` : "";
+  const action = t.docs.length === 1
+    ? `<label class="rowup" title="Upload a file for ${esc(t.docs[0].name)}">
+         <span>${s.files ? "Add" : "Upload"}</span>
+         <input type="file" multiple data-rowup="${esc(t.code)}"></label>`
+    : `<a href="#" data-task="${esc(t.code)}">${t.docs.length} documents</a>`;
+  return count + files + action;
+}
+
+function taskRow(t) {
+  return `<tr>
+    <td class="code">${esc(t.code)}</td>
+    <td class="code">${esc(t.sno || "—")}</td>
+    <td class="tname"><a href="#" data-task="${esc(t.code)}">${esc(t.wTitle)}</a>${
+      t.review && !t.cleared
+        ? `<br><button class="clearflag" data-clear="${esc(t.code)}">Needs your review — mark checked</button>`
+        : ""}</td>
+    <td>${rowStatusSelect(t)}</td>
+    <td class="pcell">${rowPapers(t)}</td>
+    <td class="dcell"><input type="date" class="inline" data-row="${esc(t.code)}" data-field="due"
+        value="${esc(t.wDue)}" title="${t.wDue ? "" : esc(t.srcTime || "No deadline in the spreadsheet")}">${
+      isOverdue(t) ? '<span class="od">Overdue</span>'
+      : (!t.wDue && t.srcTime
+          ? `<span class="nodate" title="From the spreadsheet: ${esc(t.srcTime)}">${
+              esc(t.srcTime.length > 30 ? t.srcTime.slice(0, 28) + "\u2026" : t.srcTime)}</span>`
+          : "")}</td>
+    <td class="ocell"><input class="inline" list="ownerNames" data-row="${esc(t.code)}" data-field="owner"
+        value="${esc(t.wOwner)}" placeholder="Add a name"></td>
+  </tr>`;
+}
+
+function tasksPage() {
+  const chips = [["","All"],["open","Open"],["done","Completed"],["blocked","Waiting on paperwork"],
+                 ["overdue","Overdue"],["soon","Due in 14 days"],["nodate","Deadline in words"],
+                 ["review","Needs review"],["na","Not applicable yet"]];
+  const T = filterTasks();
+  return `
+  <div class="bar-row">${chips.map(([k, l]) =>
+    `<button class="chip ${route.filter === k ? "on" : ""}" data-filter="${k}" data-go="tasks">${l}</button>`).join("")}</div>
+  <div class="bar-row">
+    <div style="flex:1;max-width:400px"><input type="search" id="q" placeholder="Search task, code, person or source text" value="${esc(route.q)}"></div>
+    <button class="btn ghost" id="printBtn">Print this list</button>
+  </div>
+  <datalist id="ownerNames">${ownerNames().map(nm => `<option value="${esc(nm)}">`).join("")}</datalist>
+  <div class="card">
+    <p class="lede">${T.length} task${T.length === 1 ? "" : "s"} shown. Change the status, due date and owner
+    straight in the table, and upload a file from the row. Everything saves as you go.
+    Open a task by its name for comments, extra documents and history.</p>
+    <div style="overflow-x:auto"><table class="sheet">
+      <thead><tr><th>Code</th><th>S.No</th><th>Task</th><th>Status</th><th>Papers</th><th>Due</th><th>Owner</th></tr></thead>
+      <tbody>${T.map(taskRow).join("") ||
+        '<tr><td colspan="7" style="padding:22px;color:#667284">No tasks match. Choose <strong>All</strong> above.</td></tr>'}
+      </tbody></table></div>
+  </div>`;
+}
+
+/* ----------------------------------------------------------- task detail */
+function fileRow(code, di, fi, f) {
+  return `<div class="file">
+    <span class="ver">V${f.ver}</span>
+    <span class="fn">${esc(f.name)}</span>
+    <span class="meta">${fmtBytes(f.size)} &middot; ${esc(fmt(f.at))}</span>
+    <button class="btn ghost sm" data-open="${code}|${di}|${fi}">Open</button>
+    <button class="btn ghost sm" data-save="${code}|${di}|${fi}">Save a copy</button>
+    <button class="btn ghost sm no-print" data-delfile="${code}|${di}|${fi}">Delete</button>
+  </div>`;
+}
+function docBlock(t, d, i) {
+  const held = isHeld(d);
+  return `<div class="doc ${held ? "held" : (d.mandatory ? "missing" : "")}">
+    <div class="doc-head">
+      <span class="nm">${esc(d.name)}</span>
+      <span class="badge b-idle">${d.mandatory ? "Required" : "Optional"}</span>
+      ${held ? '<span class="badge b-ok">In hand</span>' : '<span class="badge b-warn">Not yet</span>'}
+      <select data-doc="${i}" data-dfield="status">
+        ${DOCSTATUS.map(s => `<option ${s === d.status ? "selected" : ""}>${s}</option>`).join("")}</select>
+      <button class="btn ghost sm no-print" data-togglereq="${i}">${d.mandatory ? "Make optional" : "Make required"}</button>
+      <button class="btn ghost sm no-print" data-deldoc="${i}">Remove</button>
+    </div>
+    <div class="grid2">
+      <div class="field" style="margin:0"><label>Where the original is kept</label>
+        <input data-doc="${i}" data-dfield="where" value="${esc(d.where || "")}" placeholder="Office file, cupboard, drive link"></div>
+      <div class="field" style="margin:0"><label>Remarks</label>
+        <input data-doc="${i}" data-dfield="remarks" value="${esc(d.remarks || "")}"></div>
+    </div>
+    ${d.files.length ? `<div class="files">${d.files.map((f, fi) => fileRow(t.code, i, fi, f)).join("")}</div>` : ""}
+    <label class="uploader ${d.files.length ? "replace" : ""}">
+      <span>${d.files.length ? "Upload a new version" : "Upload file"}</span>
+      <input type="file" multiple data-upload="${i}">
+    </label>
+    ${d.files.length ? `<div class="hint">Uploading again adds V${Math.max.apply(null, d.files.map(f => f.ver)) + 1}. Earlier versions are never overwritten.</div>` : ""}
+  </div>`;
+}
+function taskPage(t) {
+  const sel = (arr, cur) => arr.map(o => `<option value="${esc(o)}" ${o === cur ? "selected" : ""}>${esc(o || "\u2014 none \u2014")}</option>`).join("");
+  const s = docStats(t);
+  const blocked = s.missing > 0 && !DONE_STATUSES.includes(t.wStatus) && t.wApplic === "Applicable";
+  return `
+  ${t.review && !t.cleared ? `<div class="note"><h3>This one needs your decision</h3>
+    <p>The wording in the spreadsheet's STATUS column did not map cleanly onto a status, so nothing was guessed.
+    The original wording is shown lower down, unchanged.</p>
+    <button class="btn sm" id="clearReview">I have checked this</button></div>` : ""}
+
+  ${blocked ? `<div class="note"><h3>${s.missing} required document${s.missing === 1 ? "" : "s"} still missing</h3>
+    <ul>${s.missingNames.map(n => `<li>${esc(n)}</li>`).join("")}</ul>
+    <p style="margin:8px 0 0">Upload them below. You can still mark the task completed without them, but you will be asked to confirm.</p></div>` : ""}
+
+  <div class="card">
+    <h2>Working details</h2>
+    <p class="lede">Yours to edit. Changes save to this browser as you make them.</p>
+    <div class="grid2">
+      <div class="field"><label for="f_status">Status</label><select id="f_status">${sel(STATUSES, t.wStatus)}</select></div>
+      <div class="field"><label for="f_applic">Applicability</label><select id="f_applic">${sel(APPLIC, t.wApplic)}</select></div>
+      <div class="field"><label for="f_priority">Priority</label><select id="f_priority">${sel(PRIORITY, t.wPriority)}</select></div>
+      <div class="field"><label for="f_owner">Responsible person</label><input id="f_owner" value="${esc(t.wOwner)}" placeholder="Name"></div>
+      <div class="field"><label for="f_prog">Programme</label><input id="f_prog" value="${esc(t.wProg)}" placeholder="D.Pharm, B.Pharm, or both"></div>
+      <div class="field"><label for="f_auth">Authority</label><input id="f_auth" value="${esc(t.wAuth)}" placeholder="Which office issues this"></div>
+      <div class="field"><label for="f_start">Start date</label><input type="date" id="f_start" value="${esc(t.wStart)}"></div>
+      <div class="field"><label for="f_due">Due date</label><input type="date" id="f_due" value="${esc(t.wDue)}">
+        ${!t.dueOk && t.srcTime ? `<div class="hint">The spreadsheet said: &ldquo;${esc(t.srcTime)}&rdquo;. No date was guessed from it.</div>` : ""}</div>
+      <div class="field"><label for="f_pct">Percentage complete</label><input type="number" min="0" max="100" id="f_pct" value="${t.wPct}"></div>
+    </div>
+    <div class="field"><label for="f_notes">Your notes</label><textarea id="f_notes" placeholder="Anything you want to remember about this task">${esc(t.wNotes)}</textarea></div>
+  </div>
+
+  <div class="card">
+    <h2>Documents for this task</h2>
+    <p class="lede">Required ${s.required} &nbsp;&middot;&nbsp; In hand ${s.held} &nbsp;&middot;&nbsp; Missing ${s.missing}
+      &nbsp;&middot;&nbsp; ${s.files} file${s.files === 1 ? "" : "s"} uploaded</p>
+    <div class="progress thin"><i class="${s.pct === 100 ? "full" : ""}" style="width:${s.pct}%"></i></div>
+    <p class="hint" style="margin-bottom:16px">${s.pct}% of the required papers are accounted for.
+      Files you upload stay on this computer, inside this browser. Nothing is sent anywhere.</p>
+    ${t.docs.map((d, i) => docBlock(t, d, i)).join("") || '<p class="empty">No documents listed.</p>'}
+    <div class="bar-row" style="margin-top:16px">
+      <div style="flex:1;max-width:380px"><input id="newDoc" placeholder="Name of another document this task needs"></div>
+      <button class="btn" id="addDoc">Add to the list</button>
+    </div>
+  </div>
+
+  <div class="card locked">
+    <h2>Exactly as it appears in the spreadsheet</h2>
+    <p class="lede">Original source data. Nothing here can be edited, in this app or by anyone using it.</p>
+    <table class="pairs">
+      <tr><th>Serial number</th><td>${esc(t.sno || "\u2014")}</td></tr>
+      <tr><th>Annexure</th><td>${esc(t.annex || "\u2014")}</td></tr>
+      <tr><th>Description</th><td><div class="verbatim">${esc(t.desc)}</div>${
+        t.wTitle !== t.desc ? `<div class="hint">Shown in the portal as &ldquo;${esc(t.wTitle)}&rdquo; &mdash;
+        a spelling correction. The spreadsheet wording above is untouched.</div>` : ""}</td></tr>
+      <tr><th>Status</th><td><div class="verbatim">${esc(t.srcStatus || "(blank)")}</div></td></tr>
+      <tr><th>Time</th><td><div class="verbatim">${esc(t.srcTime || "(blank)")}</div></td></tr>
+      <tr><th>Cell reference</th><td>${esc(t.ref)}</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Comments and follow-up</h2>
+    ${t.comments.length ? t.comments.slice().reverse().map((c, i) => `
+      <div class="thread"><div class="when">${esc(fmt(c.date))}</div>
+        <div class="who">${esc(c.who || "Unnamed")}</div><div>${esc(c.body)}</div>
+        <button class="btn ghost sm no-print" style="margin-top:5px" data-delcomment="${t.comments.length - 1 - i}">Delete</button>
+      </div>`).join("") : '<p class="empty">No comments yet.</p>'}
+    <div class="field" style="margin-top:12px"><label for="newComment">Add a comment</label>
+      <textarea id="newComment" placeholder="What happened, what is next"></textarea></div>
+    <div class="bar-row">
+      <div style="max-width:220px"><input id="commentWho" placeholder="Your name" value="${esc(state.user)}"></div>
+      <button class="btn" id="addComment">Add comment</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>History</h2>
+    ${t.history.length ? `<table><thead><tr><th>When</th><th>Change</th></tr></thead><tbody>
+      ${t.history.slice().reverse().map(h => `<tr><td class="code">${esc(new Date(h.at).toLocaleString())}</td><td>${esc(h.what)}</td></tr>`).join("")}
+      </tbody></table>` : '<p class="empty">Nothing changed yet. Status changes and uploads are recorded here.</p>'}
+  </div>`;
+}
+
+/* -------------------------------------------------------------- documents */
+function docsPage() {
+  const rows = [];
+  allTasks().forEach(t => t.docs.forEach((d, i) =>
+    rows.push({ code: t.code, task: t.wTitle, i, name: d.name, mandatory: d.mandatory,
+                status: d.status, where: d.where, files: d.files, held: isHeld(d) })));
+  const f = route.filter;
+  let shown = rows;
+  if (f === "missing") shown = rows.filter(r => r.mandatory && !r.held);
+  else if (f === "held") shown = rows.filter(r => r.held);
+  else if (f === "files") shown = rows.filter(r => r.files.length > 0);
+  else if (f) shown = rows.filter(r => r.status === f);
+
+  const nMissing = rows.filter(r => r.mandatory && !r.held).length;
+  const nHeld = rows.filter(r => r.held).length;
+  const nFiles = rows.filter(r => r.files.length > 0).length;
+
+  return `
+  <div class="bar-row">
+    <button class="chip ${!f ? "on" : ""}" data-go="docs" data-filter="">All (${rows.length})</button>
+    <button class="chip ${f === "missing" ? "on" : ""}" data-go="docs" data-filter="missing">Still missing (${nMissing})</button>
+    <button class="chip ${f === "held" ? "on" : ""}" data-go="docs" data-filter="held">In hand (${nHeld})</button>
+    <button class="chip ${f === "files" ? "on" : ""}" data-go="docs" data-filter="files">Has a file (${nFiles})</button>
+    ${DOCSTATUS.map(s => `<button class="chip ${f === s ? "on" : ""}" data-go="docs" data-filter="${s}">${s}</button>`).join("")}
+  </div>
+  <div class="card">
+    <p class="lede">Every document across all ${SEED.tasks.length} tasks. Click a row to open its task and upload there.</p>
+    ${shown.length ? `<div style="overflow-x:auto"><table>
+      <thead><tr><th>Document</th><th>For task</th><th>Status</th><th>Files</th><th>Where the original is</th></tr></thead>
+      <tbody>${shown.map(r => `<tr class="click" data-task="${esc(r.code)}">
+        <td>${esc(r.name)}${r.mandatory ? "" : ' <span class="badge b-idle">Optional</span>'}</td>
+        <td class="src">${esc(r.code)}</td>
+        <td><span class="badge ${r.held ? "b-ok" : "b-warn"}">${esc(r.status)}</span></td>
+        <td class="code">${r.files.length || "\u2014"}</td>
+        <td class="src">${esc(r.where || "\u2014")}</td></tr>`).join("")}
+      </tbody></table></div>`
+      : `<p class="empty">Nothing matches this filter.</p>`}
+  </div>`;
+}
+
+/* -------------------------------------------------------------- deadlines */
+function datesPage() {
+  const T = allTasks().filter(t => t.wDue).sort((a, b) => a.wDue.localeCompare(b.wDue));
+  const none = allTasks().filter(t => !t.wDue && t.srcTime);
+  const groups = {};
+  T.forEach(t => { const m = t.wDue.slice(0, 7); (groups[m] = groups[m] || []).push(t); });
+  const monthName = m => new Date(m + "-01").toLocaleString(undefined, { month: "long", year: "numeric" });
+  return `
+  <div class="card">
+    <h2>Everything with a date, in order</h2>
+    ${Object.keys(groups).sort().map(m => `
+      <h3 style="font-family:var(--serif);font-weight:400;font-size:17px;margin:18px 0 8px">${esc(monthName(m))}</h3>
+      <table><tbody>${groups[m].map(t => { const s = docStats(t); return `
+        <tr class="click" data-task="${esc(t.code)}">
+          <td class="code" style="width:110px">${fmt(t.wDue)}</td>
+          <td style="width:130px">${statusBadge(t)}</td>
+          <td>${esc(t.wTitle)}</td>
+          <td class="code" style="width:70px">${s.held}/${s.required}</td>
+          <td class="src" style="width:140px">${esc(t.wOwner || "")}</td>
+        </tr>`; }).join("")}</tbody></table>`).join("") || '<p class="empty">No task has a date yet.</p>'}
+  </div>
+  <div class="card">
+    <h2>Deadlines still written in words</h2>
+    <p class="lede">The spreadsheet gave these as sentences rather than dates. Nothing was guessed.
+    Open each one and set a real date so it appears in the list above.</p>
+    ${none.length ? `<table><thead><tr><th>Task</th><th>What the spreadsheet says</th></tr></thead><tbody>
+      ${none.map(t => `<tr class="click" data-task="${esc(t.code)}"><td>${esc(t.wTitle)}</td><td class="src">${esc(t.srcTime)}</td></tr>`).join("")}
+      </tbody></table>` : '<p class="empty">All of them now have dates.</p>'}
+  </div>`;
+}
+
+/* ----------------------------------------------------------------- backup */
+function backupPage() {
+  let files = 0, bytes = 0;
+  allTasks().forEach(t => t.docs.forEach(d => d.files.forEach(f => { files++; bytes += f.size || 0; })));
+  return `
+  <div class="note"><h3>Read this once</h3>
+  <p>Everything you type, <strong>and every file you upload</strong>, lives in this browser on this
+  computer only. Nothing is sent to a server. Clearing browsing data, or using another computer,
+  means it is not there. Download the complete archive regularly and keep it somewhere safe.</p></div>
+
+  <div class="card">
+    <h2>Save everything</h2>
+    <p class="lede">${files} file${files === 1 ? "" : "s"} uploaded so far, ${fmtBytes(bytes)} in total.</p>
+    <div class="bar-row">
+      <button class="btn" id="expZip">Download complete archive (with files)</button>
+      <button class="btn ghost" id="expJson">Download notes only (small)</button>
+      <button class="btn ghost" id="expCsv">Download tasks as a spreadsheet</button>
+      <button class="btn ghost" id="printAll">Print a full report</button>
+    </div>
+    <p class="hint">The archive is an ordinary .zip. You can open it in Windows Explorer and see every
+    uploaded document filed under its task, so your papers are never trapped inside this app.</p>
+  </div>
+
+  <div class="card">
+    <h2>Restore</h2>
+    <p class="lede">Load a complete archive (.zip) or a notes-only backup (.json).
+    This replaces what is currently in this browser.</p>
+    <div class="field" style="max-width:400px"><input type="file" id="impFile" accept=".json,.zip"></div>
+  </div>
+
+  <div class="card">
+    <h2>Protect this data</h2>
+    <p class="lede">Browsers may clear stored data when disk space runs low. This asks the browser
+    to keep yours. Worth doing once.</p>
+    <div class="bar-row">
+      <button class="btn ghost" id="persist">Ask the browser to keep this data</button>
+      <span id="persistState" class="hint"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Your name</h2>
+    <p class="lede">Used to sign the comments you add.</p>
+    <div class="bar-row"><div style="max-width:280px"><input id="userName" value="${esc(state.user)}" placeholder="Your name"></div>
+    <button class="btn ghost" id="saveUser">Save</button></div>
+  </div>
+
+  <div class="card">
+    <h2>Start again</h2>
+    <p class="lede">Erases every change <strong>and every uploaded file</strong>, returning all
+    ${SEED.tasks.length} tasks to how they were in the spreadsheet. Download the archive first &mdash;
+    this cannot be undone.</p>
+    <button class="btn danger" id="resetAll">Erase everything</button>
+  </div>`;
+}
+
+/* ======================================================== zip (stored only) */
+const CRCT = (function () { const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) { let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); t[n] = c >>> 0; }
+  return t; })();
+function crc32(u8) { let c = 0xFFFFFFFF;
+  for (let i = 0; i < u8.length; i++) c = CRCT[(c ^ u8[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0; }
+function zipWrite(files) {
+  const enc = new TextEncoder(), now = new Date();
+  const time = ((now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() / 2)) & 0xFFFF;
+  const date = (((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate()) & 0xFFFF;
+  const locals = [], centrals = []; let offset = 0;
+  for (const f of files) {
+    const nb = enc.encode(f.name), crc = crc32(f.data), size = f.data.length;
+    const lh = new Uint8Array(30 + nb.length), lv = new DataView(lh.buffer);
+    lv.setUint32(0, 0x04034b50, true); lv.setUint16(4, 20, true); lv.setUint16(6, 0x0800, true);
+    lv.setUint16(8, 0, true); lv.setUint16(10, time, true); lv.setUint16(12, date, true);
+    lv.setUint32(14, crc, true); lv.setUint32(18, size, true); lv.setUint32(22, size, true);
+    lv.setUint16(26, nb.length, true); lh.set(nb, 30);
+    locals.push(lh, f.data);
+    const ch = new Uint8Array(46 + nb.length), cv = new DataView(ch.buffer);
+    cv.setUint32(0, 0x02014b50, true); cv.setUint16(4, 20, true); cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true); cv.setUint16(10, 0, true); cv.setUint16(12, time, true);
+    cv.setUint16(14, date, true); cv.setUint32(16, crc, true); cv.setUint32(20, size, true);
+    cv.setUint32(24, size, true); cv.setUint16(28, nb.length, true); cv.setUint32(42, offset, true);
+    ch.set(nb, 46); centrals.push(ch);
+    offset += lh.length + size;
+  }
+  const cdSize = centrals.reduce((a, b) => a + b.length, 0);
+  const eocd = new Uint8Array(22), ev = new DataView(eocd.buffer);
+  ev.setUint32(0, 0x06054b50, true); ev.setUint16(8, files.length, true);
+  ev.setUint16(10, files.length, true); ev.setUint32(12, cdSize, true); ev.setUint32(16, offset, true);
+  const parts = locals.concat(centrals, [eocd]);
+  const out = new Uint8Array(parts.reduce((a, p) => a + p.length, 0));
+  let p = 0; for (const part of parts) { out.set(part, p); p += part.length; }
+  return out;
+}
+function zipRead(u8) {
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  let eocd = -1;
+  for (let i = u8.length - 22; i >= 0 && i > u8.length - 65558; i--) {
+    if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; } }
+  if (eocd < 0) throw new Error("That file is not a zip archive.");
+  const count = dv.getUint16(eocd + 10, true);
+  let p = dv.getUint32(eocd + 16, true);
+  const dec = new TextDecoder(), out = [];
+  for (let i = 0; i < count; i++) {
+    if (dv.getUint32(p, true) !== 0x02014b50) throw new Error("This archive looks damaged.");
+    const method = dv.getUint16(p + 10, true), size = dv.getUint32(p + 24, true);
+    const nl = dv.getUint16(p + 28, true), el = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true);
+    const lho = dv.getUint32(p + 42, true);
+    const name = dec.decode(u8.subarray(p + 46, p + 46 + nl));
+    if (method !== 0)
+      throw new Error("This archive was made by another program. Use one downloaded from this tracker.");
+    const start = lho + 30 + dv.getUint16(lho + 26, true) + dv.getUint16(lho + 28, true);
+    out.push({ name: name, data: u8.subarray(start, start + size) });
+    p += 46 + nl + el + cl;
+  }
+  return out;
+}
+
+/* ============================================ shared task actions (row + page) */
+
+/* Store files against one document of one task. Used by the task list row and
+   by the task page, so both behave identically. */
+async function uploadInto(code, di, chosen) {
+  const w = work(code), d = w.docs[di];
+  let stored = 0;
+  for (const file of chosen) {
+    const ver = (d.files.length ? Math.max.apply(null, d.files.map(f => f.ver)) : 0) + 1;
+    const fid = code + "|" + di + "|" + ver + "|" + Date.now() + "|" + Math.random().toString(36).slice(2, 8);
+    try { await putFile(fid, file); }
+    catch (err) { toast("Could not store \u201c" + file.name + "\u201d. The browser may be out of space."); continue; }
+    d.files.push({ id: fid, name: file.name, size: file.size, type: file.type || "", ver: ver, at: today() });
+    if (d.status === "Not collected") d.status = "Collected";
+    note(code, `Uploaded V${ver} "${file.name}" for "${d.name}"`);
+    stored++;
+  }
+  save();
+  if (stored) toast(stored === 1 ? "File uploaded" : stored + " files uploaded");
+  return stored;
+}
+
+/* Marking a task done while required papers are missing asks first. */
+function passesDocGate(code, before, newStatus) {
+  if (!DONE_STATUSES.includes(newStatus) || DONE_STATUSES.includes(before.wStatus)) return true;
+  const s = docStats(before);
+  if (s.missing === 0 || before.wApplic !== "Applicable") return true;
+  const okGo = confirm(
+    s.missing + " required document(s) are not in hand yet:\n\n" +
+    s.missingNames.map(n => "  \u2022  " + n).join("\n") +
+    "\n\nMark this task " + newStatus + " anyway?");
+  if (!okGo) return false;
+  note(code, `Marked ${newStatus} with ${s.missing} required document(s) still missing`);
+  return true;
+}
+
+/* One field edited from a task-list row. */
+function setRowField(code, field, val) {
+  const before = merged(seedOf(code));
+  const w = work(code);
+  if (field === "status") {
+    if (val.slice(0, 2) === "a:") {
+      const a = val.slice(2);
+      if (before.wApplic !== a) note(code, `Applicability: ${before.wApplic} \u2192 ${a}`);
+      w.applic = a;
+    } else {
+      const s = val.slice(2);
+      if (!passesDocGate(code, before, s)) return false;
+      if (before.wStatus !== s) note(code, `Status: ${before.wStatus} \u2192 ${s}`);
+      if (before.wApplic !== "Applicable") note(code, `Applicability: ${before.wApplic} \u2192 Applicable`);
+      w.status = s; w.applic = "Applicable";
+    }
+  } else if (field === "due") {
+    if (before.wDue !== val) note(code, `Due date set to ${fmt(val) || "(none)"}`);
+    w.due = val;
+  } else {
+    w[field] = val;
+  }
+  save();
+  return true;
+}
+
+/* ================================================================= events */
+function note(code, what) { work(code).history.push({ at: new Date().toISOString(), what: what }); }
+const safeName = s => String(s).replace(/[\\/:*?"<>|]/g, "-").slice(0, 90);
+const filePath = (code, f) => `documents/${safeName(code)}/V${f.ver} ${safeName(f.name)}`;
+
+document.addEventListener("click", async e => {
+  const go = e.target.closest("[data-go]");
+  if (go) {
+    e.preventDefault();
+    const prev = route.page;
+    route.task = null; route.page = go.dataset.go;
+    if (go.dataset.filter !== undefined) route.filter = go.dataset.filter;
+    if (prev !== route.page) route.q = "";
+    return render();
+  }
+  const chip = e.target.closest("[data-filter]:not([data-go])");
+  if (chip) { route.filter = chip.dataset.filter; return render(); }
+
+  /* ---- file actions ---- */
+  const openBtn = e.target.closest("[data-open]");
+  const saveBtn = e.target.closest("[data-save]");
+  const delBtn  = e.target.closest("[data-delfile]");
+  if (openBtn || saveBtn || delBtn) {
+    const el = openBtn || saveBtn || delBtn;
+    const ref = el.dataset.open || el.dataset.save || el.dataset.delfile;
+    const parts = ref.split("|"), code = parts[0], di = +parts[1], fi = +parts[2];
+    const w = work(code), meta = w.docs[di].files[fi];
+    if (delBtn) {
+      if (!confirm(`Delete "${meta.name}" (V${meta.ver})?\n\nThis removes the file from this computer and cannot be undone.`)) return;
+      try { await delFile(meta.id); } catch (err) { /* metadata still goes */ }
+      w.docs[di].files.splice(fi, 1);
+      note(code, `Deleted file V${meta.ver} "${meta.name}" from "${w.docs[di].name}"`);
+      save(); toast("File deleted"); return render();
+    }
+    let blob;
+    try { blob = await getFile(meta.id); }
+    catch (err) { return toast("Could not read that file from this browser's store."); }
+    if (!blob) return toast("That file is no longer stored in this browser. Restore it from an archive.");
+    const url = URL.createObjectURL(blob);
+    if (saveBtn) {
+      const a = document.createElement("a"); a.href = url; a.download = meta.name; a.click();
+    } else {
+      const win = window.open(url, "_blank");
+      if (!win) toast("Your browser blocked the new tab. Use \u201cSave a copy\u201d instead.");
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    return;
+  }
+
+  const cf = e.target.closest("[data-clear]");
+  if (cf) {
+    const code = cf.dataset.clear;
+    work(code).reviewCleared = true;
+    note(code, "Marked as reviewed");
+    save(); toast("Marked as checked"); return render();
+  }
+
+  const row = e.target.closest("[data-task]");
+  if (row && !e.target.closest("input,select,label")) {
+    e.preventDefault();
+    route.task = row.dataset.task; return render();
+  }
+
+  const id = e.target.id;
+  if (id === "clearReview") { work(route.task).reviewCleared = true; note(route.task, "Marked as reviewed"); save(); return render(); }
+  if (id === "printBtn" || id === "printAll") return window.print();
+
+  if (id === "addDoc") {
+    const el = document.getElementById("newDoc"), name = el.value.trim();
+    if (!name) return toast("Type the document name first");
+    work(route.task).docs.push({ name: name, mandatory: true, status: "Not collected", where: "", remarks: "", files: [] });
+    note(route.task, "Added document to the list: " + name);
+    save(); toast("Added"); return render();
+  }
+  const tr = e.target.closest("[data-togglereq]");
+  if (tr) {
+    const w = work(route.task), d = w.docs[+tr.dataset.togglereq];
+    d.mandatory = !d.mandatory;
+    note(route.task, `"${d.name}" marked ${d.mandatory ? "required" : "optional"}`);
+    save(); return render();
+  }
+  const dd = e.target.closest("[data-deldoc]");
+  if (dd) {
+    const w = work(route.task), d = w.docs[+dd.dataset.deldoc];
+    if (d.files.length && !confirm(`"${d.name}" has ${d.files.length} uploaded file(s).\n\nRemove the document and delete its files?`)) return;
+    for (const f of d.files) { try { await delFile(f.id); } catch (err) {} }
+    note(route.task, "Removed document from the list: " + d.name);
+    w.docs.splice(+dd.dataset.deldoc, 1); save(); return render();
+  }
+  if (id === "addComment") {
+    const body = document.getElementById("newComment").value.trim();
+    const who = document.getElementById("commentWho").value.trim();
+    if (!body) return toast("Type a comment first");
+    if (who) state.user = who;
+    work(route.task).comments.push({ date: today(), who: who || "Unnamed", body: body });
+    save(); toast("Comment added"); return render();
+  }
+  const dc = e.target.closest("[data-delcomment]");
+  if (dc) { work(route.task).comments.splice(+dc.dataset.delcomment, 1); save(); return render(); }
+
+  if (id === "saveUser") { state.user = document.getElementById("userName").value.trim(); save(); return toast("Saved"); }
+  if (id === "expJson") return exportJson();
+  if (id === "expCsv") return exportCsv();
+  if (id === "expZip") return exportZip();
+  if (id === "persist") {
+    const out = document.getElementById("persistState");
+    try {
+      const okp = await navigator.storage.persist();
+      out.textContent = okp ? "The browser agreed to keep this data."
+                            : "The browser declined. Keep downloading archives.";
+    } catch (err) { out.textContent = "This browser does not offer that."; }
+    return;
+  }
+  if (id === "resetAll") {
+    if (!confirm("Erase every change AND every uploaded file, returning to the original spreadsheet data?\n\nThis cannot be undone.")) return;
+    try { await clearFiles(); } catch (err) {}
+    state = blankState(); save();
+    route = { page: "dash", filter: "", q: "", task: null };
+    toast("Everything reset"); return render();
+  }
+});
+
+document.addEventListener("change", async e => {
+  const t = e.target;
+  if (t.id === "impFile" && t.files && t.files[0]) return importAny(t.files[0]);
+
+  /* ---- upload from a task-list row ---- */
+  if (t.dataset.rowup !== undefined && t.files && t.files.length) {
+    const code = t.dataset.rowup;
+    const chosen = Array.prototype.slice.call(t.files);
+    t.value = "";
+    await uploadInto(code, 0, chosen);
+    return render();
+  }
+
+  /* ---- edited straight in the task list ---- */
+  if (t.dataset.row !== undefined) {
+    const code = t.dataset.row, field = t.dataset.field;
+    const before = merged(seedOf(code));
+    if (!setRowField(code, field, t.value)) {
+      t.value = before.wApplic !== "Applicable" ? "a:" + before.wApplic : "s:" + before.wStatus;
+      return;
+    }
+    if (field === "owner") return toast("Saved");
+    toast("Saved");
+    return render();
+  }
+
+  /* ---- upload from a task page ---- */
+  if (t.dataset.upload !== undefined && t.files && t.files.length) {
+    const chosen = Array.prototype.slice.call(t.files);
+    t.value = "";
+    await uploadInto(route.task, +t.dataset.upload, chosen);
+    return render();
+  }
+
+  if (t.dataset.doc !== undefined) {
+    const w = work(route.task), d = w.docs[+t.dataset.doc];
+    d[t.dataset.dfield] = t.value;
+    if (t.dataset.dfield === "status") { note(route.task, `"${d.name}" set to ${t.value}`); save(); return render(); }
+    save(); return toast("Saved");
+  }
+
+  const map = { f_status:"status", f_applic:"applic", f_priority:"priority", f_owner:"owner",
+                f_prog:"prog", f_auth:"auth", f_start:"start", f_due:"due", f_pct:"pct", f_notes:"notes" };
+  if (map[t.id] && route.task) {
+    const field = map[t.id], before = merged(seedOf(route.task));
+    let val = t.value;
+
+    /* completing a task with required papers missing needs a deliberate confirmation */
+    if (field === "status" && !passesDocGate(route.task, before, val)) { t.value = before.wStatus; return; }
+
+    const w = work(route.task);
+    if (field === "pct") val = Math.max(0, Math.min(100, parseInt(val || 0, 10)));
+    w[field] = val;
+    if (field === "status" && before.wStatus !== val) note(route.task, `Status: ${before.wStatus} \u2192 ${val}`);
+    if (field === "applic" && before.wApplic !== val) note(route.task, `Applicability: ${before.wApplic} \u2192 ${val}`);
+    if (field === "due" && before.wDue !== val) note(route.task, `Due date set to ${fmt(val) || "(none)"}`);
+    save(); toast("Saved");
+    if (["status","applic","due"].includes(field)) render();
+  }
+});
+
+document.addEventListener("input", e => {
+  if (e.target.id === "q") {
+    route.q = e.target.value;
+    document.getElementById("view").innerHTML = tasksPage();
+    const q = document.getElementById("q");
+    q.focus(); q.setSelectionRange(q.value.length, q.value.length);
+  }
+});
+
+/* ========================================================= import / export */
+function download(name, data, type) {
+  const b = new Blob([data], { type: type });
+  const u = URL.createObjectURL(b), a = document.createElement("a");
+  a.href = u; a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(u), 4000);
+}
+const stamp = () => new Date().toISOString().slice(0, 10);
+
+function exportJson() {
+  download(`jct-pharma-notes-${stamp()}.json`, JSON.stringify(state, null, 1), "application/json");
+  toast("Notes downloaded. This does not include uploaded files.");
+}
+function exportCsv() {
+  const cell = v => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+  const head = ["Task code","S.No","Annexure","Task","Status","Applicability","Priority","Responsible",
+                "Programme","Authority","Start","Due","% complete","Docs required","Docs in hand",
+                "Files uploaded","Source status","Source time","Source cell","Notes"];
+  const lines = [head.map(cell).join(",")];
+  allTasks().forEach(t => { const s = docStats(t);
+    lines.push([t.code, t.sno, t.annex, t.desc, t.wStatus, t.wApplic, t.wPriority, t.wOwner, t.wProg,
+      t.wAuth, t.wStart, t.wDue, t.wPct, s.required, s.held, s.files,
+      t.srcStatus, t.srcTime, t.ref, t.wNotes].map(cell).join(",")); });
+  download(`jct-pharma-tasks-${stamp()}.csv`, "\uFEFF" + lines.join("\r\n"), "text/csv;charset=utf-8");
+  toast("Spreadsheet downloaded");
+}
+
+async function collectArchive(progress) {
+  const enc = new TextEncoder();
+  const entries = [{ name: "data.json", data: enc.encode(JSON.stringify(state, null, 1)) }];
+  const index = ["Task code,Document,Version,File name,Stored as"];
+  let n = 0;
+  for (const t of allTasks()) {
+    for (const d of t.docs) {
+      for (const f of d.files) {
+        let blob = null;
+        try { blob = await getFile(f.id); } catch (err) {}
+        if (!blob) continue;
+        const path = filePath(t.code, f);
+        entries.push({ name: path, data: new Uint8Array(await blob.arrayBuffer()) });
+        index.push([t.code, d.name, "V" + f.ver, f.name, path]
+          .map(v => '"' + String(v).replace(/"/g, '""') + '"').join(","));
+        n++;
+        if (progress) progress(n);
+      }
+    }
+  }
+  entries.push({ name: "file-index.csv", data: enc.encode("\uFEFF" + index.join("\r\n")) });
+  entries.push({ name: "READ ME.txt", data: enc.encode(
+    "JCT Pharma Approval Tracker - complete archive\r\n" +
+    "Created " + new Date().toLocaleString() + "\r\n\r\n" +
+    "data.json      - all your notes, statuses, dates and comments\r\n" +
+    "documents/     - every uploaded file, in a folder per task\r\n" +
+    "file-index.csv - which file belongs to which document\r\n\r\n" +
+    "To restore: open the tracker, go to Backup, and load this .zip file.\r\n" +
+    "You can also just open the documents folder and use the files directly.\r\n") });
+  return { entries: entries, count: n };
+}
+
+async function exportZip() {
+  const btn = document.getElementById("expZip");
+  const label = "Download complete archive (with files)";
+  if (btn) { btn.disabled = true; btn.textContent = "Collecting files..."; }
+  try {
+    const r = await collectArchive(n => { if (btn) btn.textContent = "Collecting files... " + n; });
+    download(`jct-pharma-archive-${stamp()}.zip`, zipWrite(r.entries), "application/zip");
+    toast(`Archive downloaded with ${r.count} file${r.count === 1 ? "" : "s"}`);
+  } catch (err) {
+    toast("Could not build the archive. Try the notes-only backup.");
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = label; }
+  }
+}
+
+async function restoreArchive(entries) {
+  const dataEntry = entries.filter(e => e.name === "data.json")[0];
+  if (!dataEntry) throw new Error("This archive has no data.json inside it.");
+  const s = JSON.parse(new TextDecoder().decode(dataEntry.data));
+  if (!s || !s.tasks) throw new Error("bad");
+  await clearFiles();
+  state = s; if (!state.tasks) state.tasks = {};
+  const byPath = {};
+  entries.forEach(e => { byPath[e.name] = e.data; });
+  let restored = 0;
+  for (const code of Object.keys(state.tasks)) {
+    const w = state.tasks[code];
+    for (const d of (w.docs || [])) {
+      for (const f of (d.files || [])) {
+        const bytes = byPath[filePath(code, f)];
+        if (!bytes) continue;
+        await putFile(f.id, new Blob([bytes], { type: f.type || "application/octet-stream" }));
+        restored++;
+      }
+    }
+  }
+  save();
+  return restored;
+}
+
+function importAny(file) {
+  const isZip = /\.zip$/i.test(file.name);
+  const r = new FileReader();
+  r.onload = async () => {
+    try {
+      if (isZip) {
+        const entries = zipRead(new Uint8Array(r.result));
+        if (!confirm("Replace everything in this browser \u2014 notes and files \u2014 with this archive?")) return;
+        const n = await restoreArchive(entries);
+        route = { page: "dash", filter: "", q: "", task: null }; render();
+        toast(`Restored, with ${n} file${n === 1 ? "" : "s"}`);
+      } else {
+        const s = JSON.parse(r.result);
+        if (!s || typeof s !== "object" || !s.tasks) throw new Error("bad");
+        if (!confirm("Replace the notes in this browser with this backup?\n\nUploaded files already here are kept.")) return;
+        state = s; if (!state.tasks) state.tasks = {};
+        save(); route = { page: "dash", filter: "", q: "", task: null }; render();
+        toast("Notes restored");
+      }
+    } catch (err) {
+      toast(err && err.message && err.message !== "bad" ? err.message
+            : "That file is not a backup from this tracker.");
+    }
+  };
+  if (isZip) r.readAsArrayBuffer(file); else r.readAsText(file);
+}
+
+render();
+</script>
+</body>
+</html>
